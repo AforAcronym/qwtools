@@ -22,5 +22,6 @@ export EV2NM, NM2EV
 const  EV2NM = CONST_PLANCK * SPEED_LIGHT / ELECTRON_CHARGE_SI  # eV * nm
 const  NM2EV = EV2NM 
 
-
+export DENSITY_OF_X
+const  DENSITY_OF_X 		= 10e8 	# Calculation points per 1 cm
 end

@@ -76,5 +76,13 @@ function bisection(func::Function, a::Real, b::Real, tol::Real)
 	return (mid, err)
 end
 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+export simp
+# Simpson method integration
+function simp()
+
+end
+
+
 
 end
