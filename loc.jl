@@ -170,42 +170,44 @@ end
 function jump(  domain      ::Array{Site, 3}, 
                 ipos        ::Array{Int64,1}, 
                 exc_lifetime::Float64, 
+                esc_rate    ::Float64, 
                 total_time  ::Float64,
                 lim         ::Int64  )
 
-    # Taking step into account, estimate number of envelope perimeters
-    # sufficient for the calculation. No need to go through sites which stand
-    # far enough to be neglected. lim is now used for the purpose
+    # This decays are relative because they are not multiplied by exc_lifetime
+    decays = rel_decay(domain, ipos, lim) .* esc_rate # v(i,j)
+    
+    # println("Sum of rel_decays: ", sum(rel_decays) )
+    # println("rel_decays[lim,lim,lim]: ", rel_decays[lim,lim,lim] )
 
-    # This decays are relative because they are not multiplied with
-    # exc_lifetime since it is required only for the hop_time
-    rel_decays = rel_decay(domain, ipos, lim)
-    println("Sum of rel_decays: ", sum(rel_decays) )
-    rel_decay_total = sum(rel_decays) + 1.0
+    decay_current = sum(decays) - decays[lim,lim,lim] + (exc_lifetime)^-1 # v(i)
 
-    hop_time = - exc_lifetime / log(rand()) / rel_decay_total   # WTF? Baranovskii PysRevB 58, 19 (1998)
-    # hop_time = - exc_lifetime * log(rand()) / rel_decay_total # WTF? Schoenherr ChemPhys 52, 287 (1980)
+    hop_time = -1 / log(rand()) / decay_current   # t(i), Baranovskii PysRevB 58, 19 (1998)
+    # XXX NOTE WTF? Schoenherr ChemPhys 52, 287 (1980): -1 * log(rand()) / decay_current
 
     # Hop
     if hop_time < exc_lifetime 
         
-        # probs = rel_decays ./ rel_decay_total               # Probabilities of hops, sum(probs) < 1
-        probs = rel_decays ./ sum(rel_decays)                 # Probabilities of hops — sum = 1
-        println("probs sum: ", sum(probs))
-        probs_distribution = Categorical(vec(probs))          # Probabilities distribution
+        probs = decays ./ decay_current               # Probabilities of hops, sum(probs) < 1
+        # probs[lim,lim,lim] = 1.0 - sum(probs)       # FIXME Why?
+        # println("decays sum: ", sum(decays))
+        # println("decays*esc_rate sum: ", sum(decays) * esc_rate)
+        # println("probs sum: ", sum(probs))
         
-        next_site_of_choise = rand( probs_distribution )      # Choose a site to jump to (index)
-        next_ipos = ind2sub(size(probs), next_site_of_choise) # Obtain (i, j, k) from the index
-        # println("next_ipos: ", next_site_of_choise, " ", next_ipos)
+        probs_distribution = Categorical(vec(probs) ./ sum(probs))  # Probabilities distribution
+            
+        next_site =  rand( probs_distribution )       # Choose a site to jump to (index)
+        next_ipos = ind2sub(size(probs), next_site)   # Obtain (i, j, k) from the index
+        # println("next_ipos: ", next_site, " ", next_ipos)
 
         # Current site is chosen to be the next XXX check
         # Recombination
         if ipos == next_ipos
-            # println("wow, staying here") 
+            println("wow, staying here") 
             return total_time + exc_lifetime, domain[ipos...]
         end
 
-        return jump(domain, [next_ipos...], exc_lifetime, total_time + hop_time, lim)
+        return jump(domain, [next_ipos...], exc_lifetime, esc_rate, total_time + hop_time, lim)
     end
 
     # Recombination
@@ -247,6 +249,7 @@ function gather( iter_num     ::Int64,
                  grid_step    ::Float64,
                  pot_distr    ::Distribution,
                  exc_lifetime ::Float64,
+                 esc_rate     ::Float64,
                  lim          ::Int64     )
     
     if length(domain_size) != 3
@@ -281,7 +284,8 @@ function gather( iter_num     ::Int64,
             i, j, k = rand(1:rows), rand(1:cols), rand(1:depz)
 
             # Start the hopping recursion over the domain
-            decay_time::Float64, last_site::Site = jump(domain, [i,j,k], exc_lifetime, 0.0, lim)
+            decay_time::Float64, last_site::Site = jump(domain, [i,j,k], 
+                                                        exc_lifetime, esc_rate, 0.0, lim)
 
             decay_times[index_exc, index_dom] = decay_time
             last_sites[ index_exc, index_dom] = last_site
