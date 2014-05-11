@@ -87,29 +87,55 @@ end
 
 
 
+# Dimensions length for the desired decays cube
+function dim_length(domsize::Array{Int64,1}, lim::Int64)
+    if length(domsize) != 3
+        error("Domain must be three-dimensional.")
+    end
+    dim_len = [lim,lim,lim] .* 2 .+ 1
+    for i = 1:3
+        # Choose minimum for dimension length
+        dim_len[i] = domsize[i] < dim_len[i] ? domsize[i]      : dim_len[i]
+        # dim_len must be odd (even-1) in order to be symmetric
+        dim_len[i] = dim_len[i] % 2 == 0     ? dim_len[i] - 1  : dim_len[i]
+    end
+    lims = int((dim_len .- 1) ./ 2)
+    return dim_len, lims
+end
+
+
+
+
 
 # Relative decay
 # domain to calculate
 # ipos — index position of the current site in the domain
 # lim  — maximum number of sites layers around to search  within
 function rel_decay( domain::Array{Site, 3}, ipos::Array{Int64,1}, lim::Int64 )
+        # println("-----------------------")
+        # println("-----------------------")
+        # println("-----------------------")
         
-        step = domain[1,1,1].pos[1] - domain[2,1,1].pos[1]
-        
+        step = domain[1].pos[1] - domain[2].pos[1]
         (rows, cols, depz) = size(domain)
 
         # Dimensions length for the desired cube
-        dim_len = 2 * lim + 1 
-        rel_decays = Array(Float64, dim_len, dim_len, dim_len)
+        dim_len, lims = dim_length([rows, cols, depz], lim)
+
+        rel_decays = Array(Float64, dim_len...)
         
         shift = ipos - [1,1,1]   # Indexes shift from the origin
+        
 
-        for d = ipos[3]-lim:ipos[3]+lim, c = ipos[2]-lim:ipos[2]+lim, r = ipos[1]-lim:ipos[1]+lim
+        for d = ipos[3] - lims[3] : ipos[3] + lims[3], 
+            c = ipos[2] - lims[2] : ipos[2] + lims[2], 
+            r = ipos[1] - lims[1] : ipos[1] + lims[1]
 
-            # println("ipos = ", ipos)
-            # println("shift = ", shift)
-            # println("lim = ", lim)
-            # println("[r, c, d] = ", [r, c, d])
+            # println("- - - - - - - - ")
+            # println("ipos    = ", ipos)
+            # println("shift   = ", shift)
+            # println("lim     = ", lim)
+            # println("[r,c,d] = ", [r, c, d])
 
             # Shifts for subindexes
             rshft = ipos_shift(r, rows)
@@ -119,12 +145,12 @@ function rel_decay( domain::Array{Site, 3}, ipos::Array{Int64,1}, lim::Int64 )
             # println("[r+rshft, c+cshft, d+dshft] = ", [r+rshft, c+cshft, d+dshft])
 
             dest_site = domain[r + rshft, c + cshft, d + dshft]
-            orig_site = domain[ipos...] # Check
+            orig_site = domain[ipos...]
 
             # distance_ratio = vecnorm(dest_site.pos - [rshft, cshft, dshft].*step - orig_site.pos)
             distance_ratio = vecnorm([r, c, d].*step - orig_site.pos)
             # println("dest: ", dest_site.pos)
-            # println("shift: ", [rshft, cshft, dshft].*step)
+            # println("ishift: ", [rshft, cshft, dshft].*step)
             # println("orig: ", orig_site.pos)
             # println("distance: ", distance_ratio)
 
@@ -132,26 +158,13 @@ function rel_decay( domain::Array{Site, 3}, ipos::Array{Int64,1}, lim::Int64 )
             if dest_site.energy > orig_site.energy
                 energy_ratio = (dest_site.energy - orig_site.energy)
             end
+            # println("dim_len: ", dim_len)
+            # println("lims: ", lims)
             # println("[r,c,d] - shift .+ lim = ", [r,c,d] - shift .+ lim)
+            # println("[r + lims[1], c + lims[2], d + lims[3]] - shift = ", [r + lims[1], c + lims[2], d + lims[3]] - shift)
             
-            rel_decays[ ([r,c,d] - shift .+ lim)... ] = exp( -distance_ratio - energy_ratio ) # Check
-            
-            
-            if isnan(exp( -distance_ratio - energy_ratio ))
-                println("-distance_ratio = ", -distance_ratio)
-                println("-energy_ratio = ", -energy_ratio)
-                println("-distance_ratio - energy_ratio  = ", -distance_ratio - energy_ratio )
-                println("ipos = ", ipos)
-                println("shift = ", shift)
-                println("lim = ", lim)
-                println("[r, c, d] = ", [r, c, d])
-                println("[r+rshft, c+cshft, d+dshft] = ", [r+rshft, c+cshft, d+dshft])
-                println("dest: ", dest_site.pos)
-                println("shift: ", [rshft, cshft, dshft].*step)
-                println("orig: ", orig_site.pos)
-                println("distance: ", distance_ratio)
-                println("[r,c,d] - shift .+ lim = ", [r,c,d] - shift .+ lim)
-            end
+            rel_decays[ ([r + lims[1], c + lims[2], d + lims[3]] - shift)... ] = exp( -distance_ratio - energy_ratio )
+            # rel_decays[ ([r, c, d] - shift .+ lim)... ] = exp( -distance_ratio - energy_ratio )
 
         end
 
@@ -179,8 +192,11 @@ function jump(  domain      ::Array{Site, 3},
     
     # println("Sum of rel_decays: ", sum(rel_decays) )
     # println("rel_decays[lim,lim,lim]: ", rel_decays[lim,lim,lim] )
-
-    decay_current = sum(decays) - decays[lim,lim,lim] + (exc_lifetime)^-1 # v(i)
+    
+    _, lims = dim_length([size(domain)...], lim)
+    center = lims .+ 1
+    # println("lims: ", lims)
+    decay_current = sum(decays) - decays[center...] + (exc_lifetime)^-1 # v(i)
 
     hop_time = -1 / log(rand()) / decay_current   # t(i), Baranovskii PysRevB 58, 19 (1998)
     # XXX NOTE WTF? Schoenherr ChemPhys 52, 287 (1980): -1 * log(rand()) / decay_current
@@ -188,13 +204,14 @@ function jump(  domain      ::Array{Site, 3},
     # Hop
     if hop_time < exc_lifetime 
         
-        probs = decays ./ decay_current               # Probabilities of hops, sum(probs) < 1
-        # probs[lim,lim,lim] = 1.0 - sum(probs)       # FIXME Why?
+        probs = decays ./ decay_current               # Probabilities of hops, P(i,j), sum(probs) < 1
+        probs ./= sum(probs)                        # Technically correct normalization
+        # probs[center...] = 1.0 - sum(probs)           # FIXME Why?
         # println("decays sum: ", sum(decays))
         # println("decays*esc_rate sum: ", sum(decays) * esc_rate)
         # println("probs sum: ", sum(probs))
         
-        probs_distribution = Categorical(vec(probs) ./ sum(probs))  # Probabilities distribution
+        probs_distribution = Categorical(vec(probs))  # Probabilities distribution
             
         next_site =  rand( probs_distribution )       # Choose a site to jump to (index)
         next_ipos = ind2sub(size(probs), next_site)   # Obtain (i, j, k) from the index
@@ -220,16 +237,16 @@ end
 
 
 # Calculate E/kT, E in electron-volts, T in kelvins
-function ev_div_kt(energy, temp)
-    return energy / convert_erg2ev(CONST_BOLTZMANN) / temp
+function ev_div_kt(energy_ev, temperature)
+    return energy_ev / convert_erg2ev(CONST_BOLTZMANN) / temperature
 end
 
 
 
 
 # Calculate E/kT, E in ergs, T in kelvins
-function erg_div_kt(energy, temp)
-    return energy / CONST_BOLTZMANN / temp
+function erg_div_kt(energy_erg, temperature)
+    return energy_erg / CONST_BOLTZMANN / temperature
 end
 
 
@@ -253,7 +270,7 @@ function gather( iter_num     ::Int64,
                  lim          ::Int64     )
     
     if length(domain_size) != 3
-        error("Domain must be 3-dimensional, e.g. [20 40 50] or [20 40 1] in case of 2D")
+        error("Domain must be 3-dimensional, e.g. [20 40 50] or [100 200 1] in case of 2D")
     end
     
     (rows, cols, depz) = domain_size
@@ -284,8 +301,7 @@ function gather( iter_num     ::Int64,
             i, j, k = rand(1:rows), rand(1:cols), rand(1:depz)
 
             # Start the hopping recursion over the domain
-            decay_time::Float64, last_site::Site = jump(domain, [i,j,k], 
-                                                        exc_lifetime, esc_rate, 0.0, lim)
+            decay_time::Float64, last_site::Site = jump(domain, [i,j,k], exc_lifetime, esc_rate, 0.0, lim)
 
             decay_times[index_exc, index_dom] = decay_time
             last_sites[ index_exc, index_dom] = last_site
