@@ -5,6 +5,7 @@ module loc
 export gather
 export ev_div_kt
 export erg_div_kt
+export test_stats
 
 using utils
 using constants
@@ -197,6 +198,7 @@ function jump(  domain      ::Array{Site, 3},
     center = lims .+ 1
     # println("lims: ", lims)
     decay_current = sum(decays) - decays[center...] + (exc_lifetime)^-1 # v(i)
+    decays[center...] = exc_lifetime^-1
 
     hop_time = -1 / log(rand()) / decay_current   # t(i), Baranovskii PysRevB 58, 19 (1998)
     # XXX NOTE WTF? Schoenherr ChemPhys 52, 287 (1980): -1 * log(rand()) / decay_current
@@ -205,7 +207,7 @@ function jump(  domain      ::Array{Site, 3},
     if hop_time < exc_lifetime 
         
         probs = decays ./ decay_current               # Probabilities of hops, P(i,j), sum(probs) < 1
-        probs ./= sum(probs)                          # Technically correct normalization
+        # probs ./= sum(probs)                          # Technically correct normalization
         # probs[center...] = 1.0 - sum(probs)         # FIXME Why?
         # println("decays sum: ", sum(decays))
         # println("decays*esc_rate sum: ", sum(decays) * esc_rate)
@@ -313,6 +315,23 @@ end
 
 
 
+
+
+
+function test_stats(from=1, to=300, step=20)
+    
+    stats = Dict{ Float64, Dict{String, Array{Any}} }()
+
+    for t = from:step:to
+        decay_time, last_site = gather(100, 100, [200, 200, 200], 10.0, Normal(0, ev_div_kt(0.05, t)), 
+                1e-13, 1e17, 6)
+        stats[float(t)] = { "decay_time" => decay_time, 
+                             "last_site" => last_site    }
+    end
+    
+    return stats
+        
+end
 
 
 
