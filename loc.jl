@@ -205,8 +205,8 @@ function jump(  domain      ::Array{Site, 3},
     if hop_time < exc_lifetime 
         
         probs = decays ./ decay_current               # Probabilities of hops, P(i,j), sum(probs) < 1
-        probs ./= sum(probs)                        # Technically correct normalization
-        # probs[center...] = 1.0 - sum(probs)           # FIXME Why?
+        probs ./= sum(probs)                          # Technically correct normalization
+        # probs[center...] = 1.0 - sum(probs)         # FIXME Why?
         # println("decays sum: ", sum(decays))
         # println("decays*esc_rate sum: ", sum(decays) * esc_rate)
         # println("probs sum: ", sum(probs))
