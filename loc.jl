@@ -10,7 +10,7 @@ export test_stats
 using utils
 using constants
 using Distributions
-
+using PyPlot
 
 
 type Site 
@@ -316,22 +316,64 @@ end
 
 
 
+# Electron-volts!
+function stats_plot( stats, roundto::Int64=4 )
+    fig = figure("Statistics")
+    for t in sort([k for k in keys(stats)])
+        if t == 0
+            continue
+        end
+        # decay_times = stats[t]["decay_time"]
+        last_sites  = stats[t]["last_site"]
+        energy = [round(s.energy * convert_erg2ev(CONST_BOLTZMANN) * t, roundto)
+                                    for s in last_sites]
+        counts_dict = {nrg => 0 for nrg in unique(energy)}
+        for nrg in energy
+            counts_dict[nrg] += 1
+        end
+        energy_sorted = sort([k for k in keys(counts_dict)])
+        counts = [counts_dict[nrg] for nrg in energy_sorted]
+        len = length(counts)
+        plot3D(ones(len) .* t, energy_sorted, counts)
+    end
+end
 
 
-function test_stats(from=1, to=300, step=20)
+
+
+function test_stats(from::Float64       = 0.0,
+                    to::Float64         = 300.0,
+                    step::Float64       = 20.0, 
+                    iter_num::Int64     = 10,
+                    pot_form_num::Int64 = 5,
+                    domain_size::Array{Int64,1} = [200,200,200],
+                    grid_step::Float64  = 10.0,
+                    sigma::Float64      = 0.05,
+                    exc_lifetime::Float64 = 1e-13,
+                    esc_rate::Float64   = 1e16,
+                    lim::Int64          = 6)
     
     stats = Dict{ Float64, Dict{String, Array{Any}} }()
-
+    counter = 0
+    countmax = int((to - from) / step + 1)
     for t = from:step:to
-        decay_time, last_site = gather(100, 100, [200, 200, 200], 10.0, Normal(0, ev_div_kt(0.05, t)), 
-                1e-13, 1e17, 6)
-        stats[float(t)] = { "decay_time" => decay_time, 
-                             "last_site" => last_site    }
+        
+        counter += 1
+        println(counter, "/", countmax, ": Calculation for T = ", round(t,1))
+
+        @time decay_time, last_site = gather(iter_num,     pot_form_num,
+                                             domain_size,  grid_step,
+                                             Normal(0, ev_div_kt(sigma, t)), 
+                                             exc_lifetime, esc_rate, lim)
+        stats[t] = { "decay_time" => decay_time, 
+                     "last_site" => last_site    }
     end
     
     return stats
         
 end
+
+
 
 
 
