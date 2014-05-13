@@ -20,63 +20,6 @@ end
 
 
 
-# # function hypot3(x, y, z)
-# #     return hypot(hypot(x, y), z)
-# # end
-
-
-# # # Distance between sites as dots for three coordinates
-# # function distanceXYZ(s1::Site, s2::Site)
-# #     return hypot3(  s1.x - s2.x,
-# #                     s1.y - s2.y,
-# #                     s1.z - s2.z  )
-# # end
-
-
-
-
-
-# # function populate_perimeter(arr, distr::Distribution)
-# #     (rows, cols, depz) = size(arr)
-# #     arr[ 2:end,   1,       :    ] = rand( d, length( arr[2:end,   1,       :    ]) )
-# #     arr[   1,     :,       :    ] = rand( d, length( arr[  1,     :,       :    ]) )
-# #     arr[ 2:end, 2:end,     1    ] = rand( d, length( arr[2:end, 2:end,     1    ]) )
-# #     arr[ 2:end, 2:end,    end   ] = rand( d, length( arr[2:end, 2:end,    end   ]) )
-# #     arr[ 2:end,  end,    2:end-1] = rand( d, length( arr[2:end,  end,    2:end-1]) )
-# #     arr[  end,  2:end-1, 2:end-1] = rand( d, length( arr[ end,  2:end-1, 2:end-1]) )
-# # end
-
-
-# # # Requires function of 1 argument
-# # function populate_perimeter(arr, f::Function)
-# #     arr[ 2:end,   1,       :    ] = [f(x) for x in arr[2:end,   1,       :    ]]
-# #     arr[   1,     :,       :    ] = [f(x) for x in arr[  1,     :,       :    ]]
-# #     arr[ 2:end, 2:end,     1    ] = [f(x) for x in arr[2:end, 2:end,     1    ]]
-# #     arr[ 2:end, 2:end,    end   ] = [f(x) for x in arr[2:end, 2:end,    end   ]]
-# #     arr[ 2:end,  end,    2:end-1] = [f(x) for x in arr[2:end,  end,    2:end-1]]
-# #     arr[  end,  2:end-1, 2:end-1] = [f(x) for x in arr[ end,  2:end-1, 2:end-1]]
-# # end
-
-
-# # function populate_perimeter(arr::arr{Float64,3}, 
-# #                             distr::Distribution, 
-# #                             exc_lifetime::Float64)
-# #     (rows, cols, depz) = size(arr)
-# #     arr[ 2:end,   1,       :    ] = rand( d, length( arr[2:end,   1,       :    ]) )
-# #     arr[   1,     :,       :    ] = rand( d, length( arr[  1,     :,       :    ]) )
-# #     arr[ 2:end, 2:end,     1    ] = rand( d, length( arr[2:end, 2:end,     1    ]) )
-# #     arr[ 2:end, 2:end,    end   ] = rand( d, length( arr[2:end, 2:end,    end   ]) )
-# #     arr[ 2:end,  end,    2:end-1] = rand( d, length( arr[2:end,  end,    2:end-1]) )
-# #     arr[  end,  2:end-1, 2:end-1] = rand( d, length( arr[ end,  2:end-1, 2:end-1]) )
-# # end
-
-
-
-
-
-
-
-
 # Position shift needed to reduce indexes
 function ipos_shift( x, xlim )
     x < 1    && return  xlim + ipos_shift(x + xlim, xlim)
@@ -317,16 +260,17 @@ end
 
 
 # Electron-volts!
-function stats_plot( stats, roundto::Int64=4 )
+# Make peaks?
+function stats_plot( stats, roundto::Int64=3 )
     fig = figure("Statistics")
     for t in sort([k for k in keys(stats)])
-        if t == 0
+        if t == 0 # bad
             continue
         end
         # decay_times = stats[t]["decay_time"]
         last_sites  = stats[t]["last_site"]
-        energy = [round(s.energy * convert_erg2ev(CONST_BOLTZMANN) * t, roundto)
-                                    for s in last_sites]
+        energy = [round(s.energy*convert_erg2ev(CONST_BOLTZMANN)*t, roundto)
+                                                        for s in last_sites]
         counts_dict = {nrg => 0 for nrg in unique(energy)}
         for nrg in energy
             counts_dict[nrg] += 1
@@ -340,10 +284,13 @@ end
 
 
 
+# include("loc.jl"); @time stats = loc.test_stats(1.0, 300.0, 74.0, 
+#                    40, 30, [200,200,200], 
+#                    10.0, 0.05, 1e-13, 1e16, 6); loc.stats_plot(stats)
 
-function test_stats(from::Float64       = 0.0,
-                    to::Float64         = 300.0,
-                    step::Float64       = 20.0, 
+function test_stats(from::Float64       = 1.0,
+                    to::Float64         = 77.0,
+                    step::Float64       = 5.0, 
                     iter_num::Int64     = 10,
                     pot_form_num::Int64 = 5,
                     domain_size::Array{Int64,1} = [200,200,200],
