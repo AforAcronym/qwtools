@@ -141,7 +141,10 @@ function jump(  domain      ::Array{Site, 3},
     center = lims .+ 1
     # println("lims: ", lims)
     decay_current = sum(decays) - decays[center...] + (exc_lifetime)^-1 # v(i)
-    decays[center...] = exc_lifetime^-1
+    
+    # # # # # # # # # # !!!!!!!!!!!!!!!!!!!!
+    # decays[center...] = exc_lifetime^-1 
+    decays[center...] = 0 
 
     hop_time = -1 / log(rand()) / decay_current   # t(i), Baranovskii PysRevB 58, 19 (1998)
     # XXX NOTE WTF? Schoenherr ChemPhys 52, 287 (1980): -1 * log(rand()) / decay_current
@@ -150,13 +153,13 @@ function jump(  domain      ::Array{Site, 3},
     if hop_time < exc_lifetime 
         
         probs = decays ./ decay_current               # Probabilities of hops, P(i,j), sum(probs) < 1
-        # probs ./= sum(probs)                          # Technically correct normalization
-        # probs[center...] = 1.0 - sum(probs)         # FIXME Why?
+        probs ./= sum(probs)                          # Technically correct normalization
         # println("decays sum: ", sum(decays))
         # println("decays*esc_rate sum: ", sum(decays) * esc_rate)
         # println("probs sum: ", sum(probs))
+        # probs[center...] = 1.0 - sum(probs)         # FIXME Why?
         
-        probs_distribution = Categorical(vec(probs))  # Probabilities distribution
+        probs_distribution = Categorical(vec(probs) ./ sum(probs))  # Probabilities distribution
             
         next_site =  rand( probs_distribution )       # Choose a site to jump to (index)
         next_ipos = ind2sub(size(probs), next_site)   # Obtain (i, j, k) from the index

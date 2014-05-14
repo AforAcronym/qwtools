@@ -84,5 +84,31 @@ function simp()
 end
 
 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+export countin
+# Return dict with number of repetitionsof elements in the array
+function countin(arr, acc=16)
+	dct = Dict{Float64, Int64}()
+	for i = 1:length(arr)
+		key = round(arr[i], acc);
+		if haskey(dct, key)
+			dct[key] += 1;
+		else 
+			dct[key] = 1;
+		end
+	end
+	return dct;	
+end
+
+export countin2
+function countin2(arr, acc=16)
+	dct = countin(arr, acc)
+	x = sort( [k for k in keys(dct)] )
+	y = Array(Int64, length(dct))
+	for i = 1:length(x)
+		y[i] = dct[x[i]];
+	end
+	return x, y;
+end
 
 end
