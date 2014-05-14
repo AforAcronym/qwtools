@@ -96,6 +96,15 @@ function countin(arr, acc=16)
 		else 
 			dct[key] = 1;
 		end
+		# Workaround on -0.0 and +0.0
+		if haskey(dct, -0.0)
+			if haskey(dct, 0.0)
+				dct[0.0] += dct[-0.0]
+			else 
+				dct[0.0] = dct[-0.0]
+			end
+			delete!(dct, -0.0)
+		end
 	end
 	return dct;	
 end
