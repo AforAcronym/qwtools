@@ -120,4 +120,14 @@ function countin2(arr, acc=16)
 	return x, y;
 end
 
+
+export add2dict!
+function add2dict!(dct, key)
+	if haskey(dct, key)
+		dct[key] += 1
+	else
+		dct[key] = 1
+	end
+end
+
 end

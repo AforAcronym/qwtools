@@ -208,6 +208,7 @@ end
 #   - grid_step should be lattice parameter normed by localization length 
 #     (lat_par/loc_len)
 #   - pot_distr should be normed by thermal energy (E/kT)
+# gather( 10, 10, [70,70,70], 1.0, Normal(0, ev_div_kt(0.05, 5)), 1e-13, 1e16, 6)
 function gather( iter_num     ::Int64, 
                  pot_form_num ::Int64,
                  domain_size  ::Array{Int64,1},
@@ -225,8 +226,10 @@ function gather( iter_num     ::Int64,
 
     # Allocation
     domain      = Array(Site,    rows, cols, depz)
-    decay_times = Array(Float64, iter_num, pot_form_num)
-    last_sites  = Array(Site,    iter_num, pot_form_num)
+    # decay_times = Array(Float64, iter_num, pot_form_num)
+    # exit_sites  = Array(Site,    iter_num, pot_form_num)
+    decay_times = Dict{Float64, Int64}()
+    exit_energy  = Dict{Float64, Int64}()
 
     # Populate coordinates
     for d = 1:depz, c = 1:cols, r = 1:rows
@@ -249,74 +252,56 @@ function gather( iter_num     ::Int64,
             i, j, k = rand(1:rows), rand(1:cols), rand(1:depz)
 
             # Start the hopping recursion over the domain
-            decay_time::Float64, last_site::Site = jump(domain, [i,j,k], exc_lifetime, esc_rate, 0.0, lim)
+            decay_time::Float64, exit_site::Site = jump(domain, [i,j,k], exc_lifetime, esc_rate, 0.0, lim)
 
-            decay_times[index_exc, index_dom] = decay_time
-            last_sites[ index_exc, index_dom] = last_site
+            # decay_times[index_exc, index_dom] = decay_time
+            # exit_sites[ index_exc, index_dom] = exit_site
+            add2dict!(decay_times, decay_time)
+            add2dict!(exit_energy, exit_site.energy)
         end
     end
 
-    return decay_times, last_sites
+    return decay_times, exit_energy
 end
 
 
-
-
-# Electron-volts!
-# Make peaks?
-function stats_plot( stats, roundto::Int64=3 )
-    fig = figure("Statistics")
-    for t in sort([k for k in keys(stats)])
-        if t == 0 # bad
-            continue
-        end
-        # decay_times = stats[t]["decay_time"]
-        last_sites  = stats[t]["last_site"]
-        energy = [round(s.energy*convert_erg2ev(CONST_BOLTZMANN)*t, roundto)
-                                                        for s in last_sites]
-        counts_dict = {nrg => 0 for nrg in unique(energy)}
-        for nrg in energy
-            counts_dict[nrg] += 1
-        end
-        energy_sorted = sort([k for k in keys(counts_dict)])
-        counts = [counts_dict[nrg] for nrg in energy_sorted]
-        len = length(counts)
-        plot3D(ones(len) .* t, energy_sorted, counts)
-    end
-end
 
 
 
 # include("loc.jl"); @time stats = loc.test_stats(1.0, 300.0, 74.0, 
 #                    40, 30, [200,200,200], 
 #                    10.0, 0.05, 1e-13, 1e16, 6); loc.stats_plot(stats)
-
-function test_stats(from::Float64       = 1.0,
-                    to::Float64         = 77.0,
-                    step::Float64       = 5.0, 
-                    iter_num::Int64     = 10,
-                    pot_form_num::Int64 = 5,
-                    domain_size::Array{Int64,1} = [200,200,200],
-                    grid_step::Float64  = 10.0,
-                    sigma::Float64      = 0.05,
-                    exc_lifetime::Float64 = 1e-13,
-                    esc_rate::Float64   = 1e16,
-                    lim::Int64          = 6)
+# 
+# include("loc.jl"); @time stats = loc.collect_stats(10, 10, [70,70,70], 0.5, 
+# loc.ev_div_kt(0.05, 5), 1e-13, 1e16, 6, float64([5,20,50,100,200,300])); loc.plot_stats(stats, 3)
+function collect_stats(iter_num::Int64             = 10,
+                       pot_form_num::Int64         = 5,
+                       domain_size::Array{Int64,1} = [70,70,70],
+                       grid_step::Float64          = 5.0,
+                       sigma::Float64              = 0.05,
+                       exc_lifetime::Float64       = 1e-13,
+                       esc_rate::Float64           = 1e16,
+                       lim::Int64                  = 6,
+                       temps::Array{Float64,1}     = float64([  
+                                                    1,   5,  10,  15,  20,  25,  30,  40,  
+                                                   50,  60,  70,  80,  90, 100, 110, 125, 
+                                                  140, 155, 170, 200, 230, 260, 290 ])      
+                       )
     
-    stats = Dict{ Float64, Dict{String, Array{Any}} }()
+    stats = Dict{ Float64, Dict{String, Dict{Float64, Int64}} }()
     counter = 0
-    countmax = int((to - from) / step + 1)
-    for t = from:step:to
+    countmax = length(temps)
+    for t in temps
         
         counter += 1
         println(counter, "/", countmax, ": Calculation for T = ", round(t,1))
 
-        @time decay_time, last_site = gather(iter_num,     pot_form_num,
-                                             domain_size,  grid_step,
-                                             Normal(0, ev_div_kt(sigma, t)), 
-                                             exc_lifetime, esc_rate, lim)
-        stats[t] = { "decay_time" => decay_time, 
-                     "last_site" => last_site    }
+        @time decay_times, exit_energy = gather(iter_num,    pot_form_num,
+                                               domain_size,  grid_step,
+                                               Normal(0, ev_div_kt(sigma, t)), 
+                                               exc_lifetime, esc_rate, lim)
+        stats[t] = [ "decay_times" => decay_times, 
+                     "exit_energy" => exit_energy  ]
     end
     
     return stats
@@ -324,6 +309,31 @@ function test_stats(from::Float64       = 1.0,
 end
 
 
+
+
+
+# Electron-volts!
+# FIXME Make peaks instead of averaging lines?
+function plot_stats( stats, roundto::Int64=3 )
+    fig = figure("Simulated PL")
+    for t in sort([k for k in keys(stats)])
+        if t == 0; continue; end # bad
+        # decay_times = stats[t]["decay_time"] # TODO
+        # exit_energy  = stats[t]["exit_energy"]
+        energy = [ nrg*convert_erg2ev(CONST_BOLTZMANN)*t 
+                    for nrg in keys(stats[t]["exit_energy"])]
+        # counts_dict = {nrg => 0 for nrg in unique(energy)}
+        # for nrg in energy
+        #     counts_dict[nrg] += 1
+        # end
+        # energy_sorted = sort([k for k in keys(counts_dict)])
+        # counts = [counts_dict[nrg] for nrg in energy_sorted]
+        # len = length(counts)
+        # plot3D(ones(len) .* t, energy_sorted, counts)
+        x, y = countin2(energy, roundto)
+        plot3D(ones(length(x)) .* t, x, y)
+    end
+end
 
 
 
