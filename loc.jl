@@ -226,10 +226,8 @@ function gather( iter_num     ::Int64,
 
     # Allocation
     domain      = Array(Site,    rows, cols, depz)
-    # decay_times = Array(Float64, iter_num, pot_form_num)
-    # exit_sites  = Array(Site,    iter_num, pot_form_num)
     decay_times = Dict{Float64, Int64}()
-    exit_energy  = Dict{Float64, Int64}()
+    exit_energy = Dict{Float64, Int64}()
 
     # Populate coordinates
     for d = 1:depz, c = 1:cols, r = 1:rows
@@ -254,8 +252,6 @@ function gather( iter_num     ::Int64,
             # Start the hopping recursion over the domain
             decay_time::Float64, exit_site::Site = jump(domain, [i,j,k], exc_lifetime, esc_rate, 0.0, lim)
 
-            # decay_times[index_exc, index_dom] = decay_time
-            # exit_sites[ index_exc, index_dom] = exit_site
             add2dict!(decay_times, decay_time)
             add2dict!(exit_energy, exit_site.energy)
         end
@@ -314,22 +310,14 @@ end
 
 # Electron-volts!
 # FIXME Make peaks instead of averaging lines?
-function plot_stats( stats, roundto::Int64=3 )
+function plot_stats( stats::Dict{Float64, Dict{String, Dict{Float64,Int64}}}, 
+                     roundto::Int64=3 )
     fig = figure("Simulated PL")
     for t in sort([k for k in keys(stats)])
         if t == 0; continue; end # bad
         # decay_times = stats[t]["decay_time"] # TODO
-        # exit_energy  = stats[t]["exit_energy"]
         energy = [ nrg*convert_erg2ev(CONST_BOLTZMANN)*t 
                     for nrg in keys(stats[t]["exit_energy"])]
-        # counts_dict = {nrg => 0 for nrg in unique(energy)}
-        # for nrg in energy
-        #     counts_dict[nrg] += 1
-        # end
-        # energy_sorted = sort([k for k in keys(counts_dict)])
-        # counts = [counts_dict[nrg] for nrg in energy_sorted]
-        # len = length(counts)
-        # plot3D(ones(len) .* t, energy_sorted, counts)
         x, y = countin2(energy, roundto)
         plot3D(ones(length(x)) .* t, x, y)
     end
