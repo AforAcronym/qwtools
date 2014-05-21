@@ -312,7 +312,7 @@ end
 # FIXME Make peaks instead of averaging lines?
 function plot_stats( stats::Dict{Float64, Dict{String, Dict{Float64,Int64}}}, 
                      roundto::Int64=3 )
-    fig = figure("Simulated PL")
+    fig = figure("PL Simulation")
     for t in sort([k for k in keys(stats)])
         if t == 0; continue; end # bad
         # decay_times = stats[t]["decay_time"] # TODO
