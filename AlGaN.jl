@@ -1,19 +1,21 @@
 
-export varshni
-function varshni(e0::Float64, a::Float64, b::Float64, t::Float64) 
-    return e0 - a * t * t / (t + b)
-end
+# export varshni
+# function varshni(e0::Float64, a::Float64, b::Float64, t::Float64) 
+#     return e0 - a * t * t / (t + b)
+# end
 
-export vegard
-function vegard(x::Float64, p1::Float64, p2::Float64, bow::Float64) 
-    return p1 * x + p2 * (1 - x) - bow * x * (1 - x)
-end
+# export vegard
+# function vegard(x::Float64, p1::Float64, p2::Float64, bow::Float64) 
+#     return p1 * x + p2 * (1 - x) - bow * x * (1 - x)
+# end
 
 
 
 
 export AlGaN_gap
 function AlGaN_gap(t::Float64, x::Float64)
+    # params from Nepal et al., APL 87, 242104 (2005)
+    # See Vurgaftman (2003)
     E_GaN = 3.42 # at T = 0
     E_AlN = 6.08 # at T = 0
     e_bow = 1.1
