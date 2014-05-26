@@ -17,4 +17,36 @@ function vegard(x::Float64, param1::Float64, param2::Float64, bow::Float64)
     return param1 * x + param2 * (1 - x) - bow * x * (1 - x)
 end
 
+# General crystal lattice
+abstract Lattice
+
+# ---------------------------------------------------
+type Cubic <: Lattice 
+	a::Float64  
+end
+
+function cellvolume(l::Cubic)
+	return l.a * l.a * l.a
+end
+
+
+
+# ---------------------------------------------------
+type Wurzite <: Lattice 
+	a::Float64  
+	c::Float64 
+end
+
+function cellvolume(l::Wurzite)
+	return l.c * l.a * l.a * 1.5 * sqrt(3)
+end
+
+
+# ---------------------------------------------------
+type Semiconductor
+	energy_gap_0::Float64
+	lattice::Lattice
+	
+end
+
 end
