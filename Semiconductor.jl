@@ -1,6 +1,8 @@
 
 module Semiconductor
 
+
+# ---------------------------------------------------
 # Teperature dependence of energy gap 
 # varshni(e0, a, b, t)
 export varshni
@@ -8,6 +10,8 @@ function varshni(e0::Float64, a::Float64, b::Float64, t::Float64)
     return e0 - a * t * t / (t + b)
 end
 
+
+# ---------------------------------------------------
 # Vegard's rule to approximate alloys' properties with bowing term
 export vegard
 function vegard(x::Float64, param1::Float64, param2::Float64, bow::Float64) 
@@ -19,6 +23,8 @@ end
 
 # General crystal lattice
 abstract Lattice
+
+
 
 # ---------------------------------------------------
 type Cubic <: Lattice 
@@ -46,7 +52,8 @@ end
 type Semiconductor
 	energy_gap_0::Float64
 	lattice::Lattice
-	
+	polarization::Vector{Float64,1}
+	piezotensor::Tensor #?
 end
 
 end
